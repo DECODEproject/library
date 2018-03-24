@@ -28,12 +28,15 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.util.concurrent.GenericFutureListener;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -469,6 +472,8 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
         final NettyClientPipelineFactory nettyClientPipelineFactory = new NettyClientPipelineFactory(this, sessionTable,
                     macDummy.getMacLength(), controller, rl, signatureLength);
 
+
+
         ChannelInitializer channelInitializer = new ChannelInitializer<SocketChannel>() {
             @Override
             public void initChannel(SocketChannel ch) throws Exception {
@@ -476,8 +481,14 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                 ch.pipeline().addLast(nettyClientPipelineFactory.getEncoder());
                 ch.pipeline().addLast(nettyClientPipelineFactory.getHandler());
 
+                if (controller.getStaticConf().isUseSocksProxy()) {
+                    ch.pipeline().addFirst(new Socks5ProxyHandler(controller.getStaticConf().getSocksProxy()));
+                }
+
             }
-        };					
+        };
+
+
         return channelInitializer;		
     }
 

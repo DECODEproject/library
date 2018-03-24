@@ -15,6 +15,8 @@ limitations under the License.
 */
 package bftsmart.reconfiguration.util;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.StringTokenizer;
@@ -57,7 +59,9 @@ public class TOMConfiguration extends Configuration {
     private boolean isBFT;
     private int numRepliers;
     private int numNettyWorkers;
-    
+    private boolean useSocksProxy;
+    private SocketAddress socksProxy;
+
     /** Creates a new instance of TOMConfiguration */
     public TOMConfiguration(int processId) {
         super(processId);
@@ -332,6 +336,16 @@ public class TOMConfiguration extends Configuration {
             }
             
             rsaLoader = new RSAKeyLoader(processId, TOMConfiguration.configHome, defaultKeys);
+
+            s = (String) configs.remove("system.socksproxy");
+            if (s == null) {
+                useSocksProxy = false;
+                socksProxy = null;
+            } else {
+                useSocksProxy = true;
+                String[] params = s.split(":");
+                socksProxy = new InetSocketAddress(params[0], Integer.parseInt(params[1]));
+            }
         } catch (Exception e) {
             e.printStackTrace(System.err);
         }
@@ -524,5 +538,13 @@ public class TOMConfiguration extends Configuration {
     
     public int getNumNettyWorkers() {
         return numNettyWorkers;
+    }
+
+    public boolean isUseSocksProxy() {
+        return useSocksProxy;
+    }
+
+    public SocketAddress getSocksProxy() {
+        return socksProxy;
     }
 }
