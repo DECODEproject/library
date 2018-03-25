@@ -60,7 +60,7 @@ public class TOMConfiguration extends Configuration {
     private int numRepliers;
     private int numNettyWorkers;
     private boolean useSocksProxy;
-    private SocketAddress socksProxy;
+    private InetSocketAddress socksProxy;
 
     /** Creates a new instance of TOMConfiguration */
     public TOMConfiguration(int processId) {
@@ -544,7 +544,7 @@ public class TOMConfiguration extends Configuration {
         return useSocksProxy;
     }
 
-    public SocketAddress getSocksProxy() {
+    public InetSocketAddress getSocksProxy() {
         return socksProxy;
     }
 }

@@ -69,6 +69,8 @@ import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
 
+import static java.lang.String.format;
+
 /**
  *
  * @author Paulo
@@ -482,7 +484,9 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                 ch.pipeline().addLast(nettyClientPipelineFactory.getHandler());
 
                 if (controller.getStaticConf().isUseSocksProxy()) {
-                    ch.pipeline().addFirst(new Socks5ProxyHandler(controller.getStaticConf().getSocksProxy()));
+                    InetSocketAddress socksProxy = controller.getStaticConf().getSocksProxy();
+                    System.out.println(format("[thread-%d] Connecting to SOCKS5 proxy at %s:%s", Thread.currentThread().getId(), socksProxy.getHostName(), socksProxy.getPort()));
+                    ch.pipeline().addFirst(new Socks5ProxyHandler(socksProxy));
                 }
 
             }
