@@ -151,8 +151,8 @@ public class ServiceReplica {
         try {
             cs = new ServerCommunicationSystem(this.SVController, this);
         } catch (Exception ex) {
-            Logger.getLogger(ServiceReplica.class.getName()).log(Level.SEVERE, null, ex);
-            throw new RuntimeException("Unable to build a communication system.");
+            Logger.getLogger(ServiceReplica.class.getName()).log(Level.SEVERE, "Exception " + ex.getClass().getName() + " - " + ex.getMessage());
+            throw new RuntimeException("Unable to build a communication system (see cause).", ex);
         }
 
         if (this.SVController.isInCurrentView()) {

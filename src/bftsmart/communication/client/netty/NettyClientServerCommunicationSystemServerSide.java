@@ -45,6 +45,7 @@ import java.util.logging.Level;
 
 import javax.crypto.Mac;
 
+import io.netty.handler.proxy.Socks5ProxyHandler;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.CommunicationSystemServerSide;
@@ -53,6 +54,8 @@ import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
+
+import static java.lang.String.format;
 
 /**
  *
@@ -93,7 +96,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
                         int nWorkers = this.controller.getStaticConf().getNumNettyWorkers();
 			EventLoopGroup workerGroup = (nWorkers > 0 ? new NioEventLoopGroup(nWorkers) : new NioEventLoopGroup());
 
-			ServerBootstrap b = new ServerBootstrap(); 
+			ServerBootstrap b = new ServerBootstrap();
 			b.group(bossGroup, workerGroup)
 			.channel(NioServerSocketChannel.class) 
 			.childHandler(new ChannelInitializer<SocketChannel>() {
@@ -102,6 +105,13 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 					ch.pipeline().addLast(serverPipelineFactory.getDecoder());
 					ch.pipeline().addLast(serverPipelineFactory.getEncoder());
 					ch.pipeline().addLast(serverPipelineFactory.getHandler());
+
+					if (controller.getStaticConf().isUseSocksProxy()) {
+						InetSocketAddress socksProxy = controller.getStaticConf().getSocksProxy();
+						System.out.println(format("[thread-%d] Netty Server - Connecting to SOCKS5 proxy at %s:%s", Thread.currentThread().getId(), socksProxy.getHostName(), socksProxy.getPort()));
+						ch.pipeline().addFirst(new Socks5ProxyHandler(socksProxy));
+					}
+
 				}
 			})	.childOption(ChannelOption.SO_KEEPALIVE, true).childOption(ChannelOption.TCP_NODELAY, true);
 

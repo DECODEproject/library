@@ -483,9 +483,10 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                 ch.pipeline().addLast(nettyClientPipelineFactory.getEncoder());
                 ch.pipeline().addLast(nettyClientPipelineFactory.getHandler());
 
+
                 if (controller.getStaticConf().isUseSocksProxy()) {
                     InetSocketAddress socksProxy = controller.getStaticConf().getSocksProxy();
-                    System.out.println(format("[thread-%d] Connecting to SOCKS5 proxy at %s:%s", Thread.currentThread().getId(), socksProxy.getHostName(), socksProxy.getPort()));
+                    System.out.println(format("[thread-%d] Netty Client - Connecting to SOCKS5 proxy at %s:%s", Thread.currentThread().getId(), socksProxy.getHostName(), socksProxy.getPort()));
                     ch.pipeline().addFirst(new Socks5ProxyHandler(socksProxy));
                 }
 
