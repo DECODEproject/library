@@ -134,13 +134,16 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 			})	.childOption(ChannelOption.SO_KEEPALIVE, true).childOption(ChannelOption.TCP_NODELAY, true);
 
 
-			final InetSocketAddress serverSocketAddress = new InetSocketAddress(host, port);
+			final InetSocketAddress serverSocketAddress = (staticTomConfiguration.isUseSocksProxy())
+					? InetSocketAddress.createUnresolved(host, port)
+					: new InetSocketAddress(host, port);
 
-			System.out.println(format("[thread-%d] Netty Server - Binding server host from config: [%s], socketHostname: [%s], socketAddress: [%s], socketPort: [%s] ", Thread.currentThread().getId(),
+			System.out.println(format("[thread-%d] Netty Server - Binding server host from config: [%s], socketHostname: [%s], socketAddress: [%s], socketPort: [%s], isUnResolved [%s] ", Thread.currentThread().getId(),
 					host,
 					serverSocketAddress.getHostName(),
 					serverSocketAddress.getAddress(),
-					serverSocketAddress.getPort()));
+					serverSocketAddress.getPort(),
+					serverSocketAddress.isUnresolved()));
 
 			ChannelFuture f = b.bind(serverSocketAddress).sync();
 
