@@ -32,4 +32,16 @@ public class TestTOMConfiguration {
         assertThat(socketAddress.getHostName(), is("localhost"));
         assertThat(socketAddress.getPort(), is(3456));
     }
+
+    @Test
+    public void server_ip_default() {
+        TOMConfiguration config = new TOMConfiguration(33, "config");
+        assertThat(config.getServerSocketIp(), is("127.0.0.1"));
+    }
+
+    @Test
+    public void can_set_server_ip() {
+        TOMConfiguration config = new TOMConfiguration(33, "test/config");
+        assertThat(config.getServerSocketIp(), is("0.0.0.0"));
+    }
 }

@@ -105,10 +105,11 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 			String host = staticTomConfiguration.getHost(processId);
 			int port = staticTomConfiguration.getPort(processId);
 
-			System.out.println(format("[thread-%d] Netty ServerSide - Configuring server - isUseSocksProxy: [%s], host [%s], port [%d]", Thread.currentThread().getId(),
+			System.out.println(format("[thread-%d] Netty ServerSide - Configuring server - isUseSocksProxy: [%s], host [%s], port [%d] - will bind to ip from system.config [%s]", Thread.currentThread().getId(),
 					staticTomConfiguration.isUseSocksProxy(),
 					host,
-					port));
+					port,
+					staticTomConfiguration.getServerSocketIp()));
 
 			if (staticTomConfiguration.isUseSocksProxy()) {
 				InetSocketAddress socksProxy = staticTomConfiguration.getSocksProxy();
@@ -135,7 +136,7 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 
 
 			final InetSocketAddress serverSocketAddress = (staticTomConfiguration.isUseSocksProxy())
-					? InetSocketAddress.createUnresolved(host, port)
+					? new InetSocketAddress(staticTomConfiguration.getServerSocketIp(), port)
 					: new InetSocketAddress(host, port);
 
 			System.out.println(format("[thread-%d] Netty Server - Binding server host from config: [%s], socketHostname: [%s], socketAddress: [%s], socketPort: [%s], isUnResolved [%s] ", Thread.currentThread().getId(),

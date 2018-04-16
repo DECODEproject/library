@@ -16,7 +16,6 @@ limitations under the License.
 package bftsmart.reconfiguration.util;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.StringTokenizer;
@@ -61,6 +60,7 @@ public class TOMConfiguration extends Configuration {
     private int numNettyWorkers;
     private boolean useSocksProxy;
     private InetSocketAddress socksProxy;
+    private String serverSocketIp;
 
     /** Creates a new instance of TOMConfiguration */
     public TOMConfiguration(int processId) {
@@ -346,6 +346,15 @@ public class TOMConfiguration extends Configuration {
                 String[] params = s.split(":");
                 socksProxy = new InetSocketAddress(params[0], Integer.parseInt(params[1]));
             }
+
+            s = configs.remove("system.serversocketip");
+            if (s == null) {
+                serverSocketIp = "127.0.0.1"; // default could be 0.0.0.0?
+            } else {
+                serverSocketIp = s;
+            }
+
+
         } catch (Exception e) {
             e.printStackTrace(System.err);
         }
@@ -546,5 +555,9 @@ public class TOMConfiguration extends Configuration {
 
     public InetSocketAddress getSocksProxy() {
         return socksProxy;
+    }
+
+    public String getServerSocketIp() {
+        return serverSocketIp;
     }
 }
