@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -40,6 +41,8 @@ import bftsmart.tom.ServiceReplica;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
+
+import static java.lang.String.format;
 
 
 /**
@@ -80,8 +83,25 @@ public class ServersCommunicationLayer extends Thread {
             }
         }
 
-        serverSocket = new ServerSocket(controller.getStaticConf().getServerToServerPort(
-                controller.getStaticConf().getProcessId()));
+        int port = controller.getStaticConf()
+                .getServerToServerPort(controller.getStaticConf().getProcessId());
+
+
+
+        System.out.println(format("[thread-%d] ServersCommunicationLayer() - Attempting to initialise server socket for : processID = %d, at localhost address on port [%d].",
+                Thread.currentThread().getId(),
+                controller.getStaticConf().getProcessId(),
+                port));
+
+        serverSocket = new ServerSocket(port);
+
+        InetAddress serverSocketAddress = serverSocket.getInetAddress();
+        System.out.println(format("[thread-%d] ServersCommunicationLayer() - Initialised server socket ok - socket.hostName: [%s], socket.hostAddress: [%s], binding to port: [%d]",
+                Thread.currentThread().getId(),
+                serverSocketAddress.getHostName(),
+                serverSocketAddress.getHostAddress(),
+                port));
+
 
         SecretKeyFactory fac = SecretKeyFactory.getInstance("PBEWithMD5AndDES");
         PBEKeySpec spec = new PBEKeySpec(PASSWORD.toCharArray());
@@ -217,7 +237,12 @@ public class ServersCommunicationLayer extends Thread {
             try {
 
                 //System.out.println("Waiting for server connections");
-
+//                System.out.println(format("[thread-%d] ServersCommunicationLayer.run - about to call socket.accept. inetAddress=%s, localAddr=%s, processId=%d" ,
+//                        Thread.currentThread().getId(),
+//                        serverSocket.getInetAddress(),
+//                        serverSocket.getLocalSocketAddress(),
+//                        me
+//                        ));
                 Socket newSocket = serverSocket.accept();
 
                 ServersCommunicationLayer.setSocketOptions(newSocket);
@@ -227,14 +252,17 @@ public class ServersCommunicationLayer extends Thread {
                 if (!this.controller.isInCurrentView() &&
                      (this.controller.getStaticConf().getTTPId() != remoteId)) {
                     waitViewLock.lock();
+                    //System.out.println(format("[thread-%d] adding pending connection : remoteId=%d" ,Thread.currentThread().getId(), remoteId));
                     pendingConn.add(new PendingConnection(newSocket, remoteId));
                     waitViewLock.unlock();
                 } else {
+                    //System.out.println(format("[thread-%d] establishing connection : remoteId=%d" ,Thread.currentThread().getId(), remoteId));
                     establishConnection(newSocket, remoteId);
                 }
                 //******* EDUARDO END **************//
 
             } catch (SocketTimeoutException ex) {
+                //System.ozut.println(format("[thread-%d] Socket timeout, going back round again!" ,Thread.currentThread().getId()));
             //timeout on the accept... do nothing
             } catch (IOException ex) {
                 Logger.getLogger(ServersCommunicationLayer.class.getName()).log(Level.SEVERE, null, ex);

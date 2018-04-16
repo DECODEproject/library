@@ -15,6 +15,7 @@ limitations under the License.
  */
 package bftsmart.communication.client.netty;
 
+import bftsmart.reconfiguration.util.TOMConfiguration;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -79,22 +80,40 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 	public NettyClientServerCommunicationSystemServerSide(ServerViewController controller) {
 		try {
 
+
+			final TOMConfiguration staticTomConfiguration = controller.getStaticConf();
+			final int processId = staticTomConfiguration.getProcessId();
+
 			this.controller = controller;
 			sessionTable = new HashMap();
 			rl = new ReentrantReadWriteLock();
 
 			//Configure the server.
-			Mac macDummy = Mac.getInstance(controller.getStaticConf().getHmacAlgorithm());
+			Mac macDummy = Mac.getInstance(staticTomConfiguration.getHmacAlgorithm());
 
 			serverPipelineFactory = new NettyServerPipelineFactory(this, sessionTable, macDummy.getMacLength(), controller, rl, TOMUtil.getSignatureSize(controller));
 
 			EventLoopGroup bossGroup = new NioEventLoopGroup();
                         
-                        //If the numbers of workers are not specified by the configuration file,
-                        //the event group is created with the default number of threads, which
-                        //should be twice the number of cores available.
-                        int nWorkers = this.controller.getStaticConf().getNumNettyWorkers();
+			//If the numbers of workers are not specified by the configuration file,
+			//the event group is created with the default number of threads, which
+			//should be twice the number of cores available.
+			int nWorkers = this.controller.getStaticConf().getNumNettyWorkers();
 			EventLoopGroup workerGroup = (nWorkers > 0 ? new NioEventLoopGroup(nWorkers) : new NioEventLoopGroup());
+
+
+			String host = staticTomConfiguration.getHost(processId);
+			int port = staticTomConfiguration.getPort(processId);
+
+			System.out.println(format("[thread-%d] Netty ServerSide - Configuring server - isUseSocksProxy: [%s], host [%s], port [%d]", Thread.currentThread().getId(),
+					staticTomConfiguration.isUseSocksProxy(),
+					host,
+					port));
+
+			if (staticTomConfiguration.isUseSocksProxy()) {
+				InetSocketAddress socksProxy = staticTomConfiguration.getSocksProxy();
+				System.out.println(format("[thread-%d] Netty ServerSide - Connecting to SOCKS5 proxy at %s:%s", Thread.currentThread().getId(), socksProxy.getHostName(), socksProxy.getPort()));
+			}
 
 			ServerBootstrap b = new ServerBootstrap();
 			b.group(bossGroup, workerGroup)
@@ -106,31 +125,36 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 					ch.pipeline().addLast(serverPipelineFactory.getEncoder());
 					ch.pipeline().addLast(serverPipelineFactory.getHandler());
 
-					if (controller.getStaticConf().isUseSocksProxy()) {
-						InetSocketAddress socksProxy = controller.getStaticConf().getSocksProxy();
-						System.out.println(format("[thread-%d] Netty Server - Connecting to SOCKS5 proxy at %s:%s", Thread.currentThread().getId(), socksProxy.getHostName(), socksProxy.getPort()));
+					if (staticTomConfiguration.isUseSocksProxy()) {
+						InetSocketAddress socksProxy = staticTomConfiguration.getSocksProxy();
 						ch.pipeline().addFirst(new Socks5ProxyHandler(socksProxy));
 					}
 
 				}
 			})	.childOption(ChannelOption.SO_KEEPALIVE, true).childOption(ChannelOption.TCP_NODELAY, true);
 
-			// Bind and start to accept incoming connections.
-			ChannelFuture f = b.bind(new InetSocketAddress(controller.getStaticConf().getHost(
-					controller.getStaticConf().getProcessId()),
-					controller.getStaticConf().getPort(controller.getStaticConf().getProcessId()))).sync(); 
 
-			System.out.println("-- ID = " + controller.getStaticConf().getProcessId());
+			final InetSocketAddress serverSocketAddress = new InetSocketAddress(host, port);
+
+			System.out.println(format("[thread-%d] Netty Server - Binding server host from config: [%s], socketHostname: [%s], socketAddress: [%s], socketPort: [%s] ", Thread.currentThread().getId(),
+					host,
+					serverSocketAddress.getHostName(),
+					serverSocketAddress.getAddress(),
+					serverSocketAddress.getPort()));
+
+			ChannelFuture f = b.bind(serverSocketAddress).sync();
+
+			System.out.println("-- ID = " + processId);
 			System.out.println("-- N = " + controller.getCurrentViewN());
 			System.out.println("-- F = " + controller.getCurrentViewF());
-        		System.out.println("-- Port = " + controller.getStaticConf().getPort(controller.getStaticConf().getProcessId()));
-			System.out.println("-- requestTimeout = " + controller.getStaticConf().getRequestTimeout());
-			System.out.println("-- maxBatch = " + controller.getStaticConf().getMaxBatchSize());
-			if (controller.getStaticConf().getUseMACs() == 1) System.out.println("-- Using MACs");
-			if(controller.getStaticConf().getUseSignatures() == 1) System.out.println("-- Using Signatures");
+			System.out.println("-- Port = " + port);
+			System.out.println("-- requestTimeout = " + staticTomConfiguration.getRequestTimeout());
+			System.out.println("-- maxBatch = " + staticTomConfiguration.getMaxBatchSize());
+			if (staticTomConfiguration.getUseMACs() == 1) System.out.println("-- Using MACs");
+			if(staticTomConfiguration.getUseSignatures() == 1) System.out.println("-- Using Signatures");
 			//******* EDUARDO END **************//
                         
-                        mainChannel = f.channel();
+			mainChannel = f.channel();
 
 		} catch (NoSuchAlgorithmException ex) {
 			ex.printStackTrace();

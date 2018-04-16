@@ -30,6 +30,8 @@ import bftsmart.tom.core.TOMLayer;
 import bftsmart.tom.core.messages.TOMMessage;
 import bftsmart.tom.util.Logger;
 
+import static java.lang.String.format;
+
 /**
  *
  * @author alysson
@@ -62,6 +64,8 @@ public class ServerCommunicationSystem extends Thread {
 
         serversConn = new ServersCommunicationLayer(controller, inQueue, replica);
 
+        System.out.println(format("[thread-%d] ServerCommunicationSystem - Created ServersCommunicationsLayer",
+                Thread.currentThread().getId()));
         //******* EDUARDO BEGIN **************//
        // if (manager.isInCurrentView() || manager.isInInitView()) {
             clientsConn = CommunicationSystemServerSideFactory.getCommunicationSystemServerSide(controller);
@@ -104,10 +108,11 @@ public class ServerCommunicationSystem extends Thread {
      */
     @Override
     public void run() {
-        
+
         long count = 0;
         while (doWork) {
             try {
+                //System.out.println(format("[thread-%d] ServerCommunicationSystem.run ", Thread.currentThread().getId()));
                 if (count % 1000 == 0 && count > 0) {
                     Logger.println("(ServerCommunicationSystem.run) After " + count + " messages, inQueue size=" + inQueue.size());
                 }

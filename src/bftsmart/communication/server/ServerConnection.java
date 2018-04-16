@@ -94,8 +94,10 @@ public class ServerConnection {
         if (isToConnect()) {
             //I have to connect to the remote server
             try {
-                this.socket = new Socket(this.controller.getStaticConf().getHost(remoteId),
-                        this.controller.getStaticConf().getServerToServerPort(remoteId));
+                String host = this.controller.getStaticConf().getHost(remoteId);
+                int port = this.controller.getStaticConf().getServerToServerPort(remoteId);
+                System.out.println(String.format("[thread-%d] ServerConnector Connecting to host [%s] on port [%d]", Thread.currentThread().getId(), host, port));
+                this.socket = new Socket(host, port);
                 ServersCommunicationLayer.setSocketOptions(this.socket);
                 new DataOutputStream(this.socket.getOutputStream()).writeInt(this.controller.getStaticConf().getProcessId());
 
@@ -276,7 +278,7 @@ public class ServerConnection {
         if (socket == null || !socket.isConnected()) {
 
             try {
-
+                //System.out.println(String.format("[thread-%d] reconnecting to remoteId [%d] host [%s]", Thread.currentThread().getId(), remoteId, this.controller.getStaticConf().getHost(remoteId)));
                 //******* EDUARDO BEGIN **************//
                 if (isToConnect()) {
 
