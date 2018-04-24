@@ -20,7 +20,10 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -37,6 +40,7 @@ import javax.crypto.spec.PBEKeySpec;
 import bftsmart.communication.SystemMessage;
 import bftsmart.reconfiguration.ServerViewController;
 import bftsmart.reconfiguration.VMMessage;
+import bftsmart.reconfiguration.util.TOMConfiguration;
 import bftsmart.tom.ServiceReplica;
 import bftsmart.tom.util.Logger;
 import bftsmart.tom.util.TOMUtil;
@@ -44,6 +48,9 @@ import java.math.BigInteger;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.HashSet;
+
+import static java.lang.String.format;
+import static java.lang.Thread.currentThread;
 
 /**
  * This class represents a connection with other server.
@@ -96,7 +103,7 @@ public class ServerConnection {
             try {
                 String host = this.controller.getStaticConf().getHost(remoteId);
                 int port = this.controller.getStaticConf().getServerToServerPort(remoteId);
-                System.out.println(String.format("[thread-%d] ServerConnector Connecting to host [%s] on port [%d]", Thread.currentThread().getId(), host, port));
+                System.out.println(format("[thread-%d] ServerConnector Connecting to host [%s] on port [%d]", currentThread().getId(), host, port));
                 this.socket = new Socket(host, port);
                 ServersCommunicationLayer.setSocketOptions(this.socket);
                 new DataOutputStream(this.socket.getOutputStream()).writeInt(this.controller.getStaticConf().getProcessId());
@@ -277,26 +284,48 @@ public class ServerConnection {
 
         if (socket == null || !socket.isConnected()) {
 
+            TOMConfiguration staticConf = this.controller.getStaticConf();
+
+            String host = staticConf.getHost(remoteId);
+            int serverToServerPort = staticConf.getServerToServerPort(remoteId);
+
             try {
                 //System.out.println(String.format("[thread-%d] reconnecting to remoteId [%d] host [%s]", Thread.currentThread().getId(), remoteId, this.controller.getStaticConf().getHost(remoteId)));
                 //******* EDUARDO BEGIN **************//
+
                 if (isToConnect()) {
 
-                    socket = new Socket(this.controller.getStaticConf().getHost(remoteId),
-                            this.controller.getStaticConf().getServerToServerPort(remoteId));
+                    if (staticConf.isUseSocksProxy()) {
+                        Proxy proxy = new Proxy(Proxy.Type.SOCKS, staticConf.getSocksProxy());
+
+                        socket = new Socket(proxy);
+                        socket.connect(InetSocketAddress.createUnresolved(host, serverToServerPort));
+
+                    } else {
+                        socket = new Socket(host, serverToServerPort);
+                    }
+
                     ServersCommunicationLayer.setSocketOptions(socket);
-                    new DataOutputStream(socket.getOutputStream()).writeInt(this.controller.getStaticConf().getProcessId());
+                    new DataOutputStream(socket.getOutputStream()).writeInt(staticConf.getProcessId());
 
                 //******* EDUARDO END **************//
                 } else {
                     socket = newSocket;
                 }
             } catch (UnknownHostException ex) {
+                System.out.println(format("[thread-%d] ERROR! - Attempting to establish server to server comms - Not able to find host: [%s] on port [%d] - unknownhost [%s]",
+                        currentThread().getId(),
+                        host,
+                        serverToServerPort,
+                        ex.getMessage()));
                 ex.printStackTrace();
             } catch (IOException ex) {
-                
-                System.out.println("Impossible to reconnect to replica " + remoteId);
-                //ex.printStackTrace();
+                System.out.println(format("[thread-%d] ERROR! - Attempting to establish server to server comms - Not able to find host: [%s] on port [%d] - exception [%s]",
+                        currentThread().getId(),
+                        host,
+                        serverToServerPort,
+                        ex.getMessage()));
+                ex.printStackTrace();
             }
 
             if (socket != null) {
