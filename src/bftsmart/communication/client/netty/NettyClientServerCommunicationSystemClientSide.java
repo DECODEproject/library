@@ -143,13 +143,23 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                     NettyClientServerSession cs = new NettyClientServerSession(future.channel(), macSend, macReceive, currV[i]);
                     sessionTable.put(currV[i], cs);
 
-                    System.out.println("Connecting to replica " + currV[i] + " at " + controller.getRemoteAddress(currV[i]));
+                    System.out.println(format("[thread-%d] Netty Client - Connecting to replica [%d] at [%s]",
+                            Thread.currentThread().getId(),
+                            currV[i] ,
+                            controller.getRemoteAddress(currV[i])));
+
                     //******* EDUARDO END **************//
 
                     future.awaitUninterruptibly();
 
                     if (!future.isSuccess()) {
-                            System.err.println("Impossible to connect to " + currV[i]);
+
+                            System.err.println(format("[thread-%d] Netty Client -  Could not connect to replica [%d] at [%s]. Cause [%s]",
+                                    Thread.currentThread().getId(),
+                                    currV[i],
+                                    controller.getRemoteAddress(currV[i]),
+                                    future.cause()));
+                            future.cause().printStackTrace();
                     }
 
                 } catch (java.lang.NullPointerException ex) {
@@ -218,9 +228,12 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
                         future.awaitUninterruptibly();
 
-                        if (!future.isSuccess()) {
-                            System.err.println("Impossible to connect to " + currV[i]);
-                        }
+                        System.err.println(format("[thread-%d] Netty Client updateConnections -  Could not connect to replica [%d] at [%s]. Cause [%s]",
+                                Thread.currentThread().getId(),
+                                currV[i],
+                                controller.getRemoteAddress(currV[i]),
+                                future.cause()));
+                        future.cause().printStackTrace();
 
                     } catch (InvalidKeyException ex) {
                         ex.printStackTrace();
@@ -312,7 +325,10 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         sessionTable.remove(ncss.getReplicaId());
                         sessionTable.put(ncss.getReplicaId(), cs);
 
-                        System.out.println("re-connecting to replica "+ncss.getReplicaId()+" at " + controller.getRemoteAddress(ncss.getReplicaId()));
+                        System.out.println(format("[thread-%d] NettyClient.reconnect - re-connecting to replica [%d] at [%s]",
+                                Thread.currentThread().getId(),
+                                ncss.getReplicaId(),
+                                controller.getRemoteAddress(ncss.getReplicaId())));
                     } else {
                         // This cleans an olde server from the session table
                         sessionTable.remove(ncss.getReplicaId());
@@ -340,8 +356,13 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
     public void send(boolean sign, int[] targets, TOMMessage sm) {
 
         listener.waitForChannels(); // wait for the previous transmission to complete
-        
-        Logger.println("Sending request from " + sm.getSender() + " with sequence number " + sm.getSequence() + " to " + Arrays.toString(targets));
+
+        System.out.println(format("[thread-%d] NettyClient - Sending requestType [%s] from [%d]  with sequence number [%d] to [%s]",
+                Thread.currentThread().getId(),
+                sm.getReqType().name(),
+                sm.getSender(),
+                sm.getSequence(),
+                Arrays.toString(targets)));
                 
         if (sm.serializedMessage == null) {
 

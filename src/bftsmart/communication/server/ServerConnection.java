@@ -94,19 +94,34 @@ public class ServerConnection {
 
         this.inQueue = inQueue;
 
-        this.outQueue = new LinkedBlockingQueue<byte[]>(this.controller.getStaticConf().getOutQueueSize());
+        TOMConfiguration staticConf = this.controller.getStaticConf();
+        this.outQueue = new LinkedBlockingQueue<byte[]>(staticConf.getOutQueueSize());
 
         this.noMACs = new HashSet<Integer>();
         // Connect to the remote process or just wait for the connection?
         if (isToConnect()) {
             //I have to connect to the remote server
             try {
-                String host = this.controller.getStaticConf().getHost(remoteId);
-                int port = this.controller.getStaticConf().getServerToServerPort(remoteId);
-                System.out.println(format("[thread-%d] ServerConnector Connecting to host [%s] on port [%d]", currentThread().getId(), host, port));
-                this.socket = new Socket(host, port);
+                String host = staticConf.getHost(remoteId);
+                int port = staticConf.getServerToServerPort(remoteId);
+
+                System.out.println(format("[thread-%d] ServerConnector Connecting to host [%s] on port [%d]",
+                        currentThread().getId(),
+                        host,
+                        port));
+
+                if (staticConf.isUseSocksProxy()) {
+                    Proxy proxy = new Proxy(Proxy.Type.SOCKS, staticConf.getSocksProxy());
+
+                    this.socket = new Socket(proxy);
+                    this.socket.connect(InetSocketAddress.createUnresolved(host, port));
+
+                } else {
+                    this.socket = new Socket(host, port);
+                }
+
                 ServersCommunicationLayer.setSocketOptions(this.socket);
-                new DataOutputStream(this.socket.getOutputStream()).writeInt(this.controller.getStaticConf().getProcessId());
+                new DataOutputStream(this.socket.getOutputStream()).writeInt(staticConf.getProcessId());
 
             } catch (UnknownHostException ex) {
                 ex.printStackTrace();
@@ -127,17 +142,17 @@ public class ServerConnection {
         }
                
        //******* EDUARDO BEGIN **************//
-        this.useSenderThread = this.controller.getStaticConf().isUseSenderThread();
+        this.useSenderThread = staticConf.isUseSenderThread();
 
-        if (useSenderThread && (this.controller.getStaticConf().getTTPId() != remoteId)) {
+        if (useSenderThread && (staticConf.getTTPId() != remoteId)) {
             new SenderThread().start();
         } else {
             sendLock = new ReentrantLock();
         }
         authenticateAndEstablishAuthKey();
         
-        if (!this.controller.getStaticConf().isTheTTP()) {
-            if (this.controller.getStaticConf().getTTPId() == remoteId) {
+        if (!staticConf.isTheTTP()) {
+            if (staticConf.getTTPId() == remoteId) {
                 //Uma thread "diferente" para as msgs recebidas da TTP
                 new TTPReceiverThread(replica).start();
             } else {
@@ -211,6 +226,7 @@ public class ServerConnection {
 
                     return;
                 } catch (IOException ex) {
+                    ex.printStackTrace();
                     closeSocket();
                     waitAndConnect();
                     abort = true;
@@ -290,7 +306,11 @@ public class ServerConnection {
             int serverToServerPort = staticConf.getServerToServerPort(remoteId);
 
             try {
-                //System.out.println(String.format("[thread-%d] reconnecting to remoteId [%d] host [%s]", Thread.currentThread().getId(), remoteId, this.controller.getStaticConf().getHost(remoteId)));
+                System.out.println(String.format("[thread-%d] ServerConnection.reconnect - reconnecting to remoteId [%d] host [%s] on port [%d]",
+                        Thread.currentThread().getId(),
+                        remoteId,
+                        host,
+                        serverToServerPort));
                 //******* EDUARDO BEGIN **************//
 
                 if (isToConnect()) {
