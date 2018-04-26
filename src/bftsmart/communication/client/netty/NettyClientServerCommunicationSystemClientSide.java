@@ -15,6 +15,7 @@ limitations under the License.
  */
 package bftsmart.communication.client.netty;
 
+import bftsmart.reconfiguration.util.TOMConfiguration;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -29,6 +30,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.proxy.Socks5ProxyHandler;
+import io.netty.resolver.NoopAddressResolver;
+import io.netty.resolver.NoopAddressResolverGroup;
 import io.netty.util.concurrent.GenericFutureListener;
 
 import java.io.ByteArrayOutputStream;
@@ -37,6 +40,7 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -130,15 +134,25 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
 
                     b.handler(getChannelInitializer());
 
+                    TOMConfiguration staticConf = controller.getStaticConf();
+
                     // Start the client.
-                    future =  b.connect(controller.getRemoteAddress(currV[i]));					
+                    InetSocketAddress remoteAddress = (InetSocketAddress) controller.getRemoteAddress(currV[i]);
+
+                    if (staticConf.isUseSocksProxy()) { // calling like this means it is created unresolved
+                        System.out.println(format("[thread-%d] NettyClient - using socks proxy, setting a noop address resolver so that adresses are resolved by the proxy",
+                                Thread.currentThread().getId()));
+                        b.resolver(NoopAddressResolverGroup.INSTANCE);
+                    }
+                    future = b.connect(remoteAddress);
 
                     //******* EDUARDO BEGIN **************//
 
                     //creates MAC stuff
-                    Mac macSend = Mac.getInstance(controller.getStaticConf().getHmacAlgorithm());
+
+                    Mac macSend = Mac.getInstance(staticConf.getHmacAlgorithm());
                     macSend.init(authKey);
-                    Mac macReceive = Mac.getInstance(controller.getStaticConf().getHmacAlgorithm());
+                    Mac macReceive = Mac.getInstance(staticConf.getHmacAlgorithm());
                     macReceive.init(authKey);
                     NettyClientServerSession cs = new NettyClientServerSession(future.channel(), macSend, macReceive, currV[i]);
                     sessionTable.put(currV[i], cs);
@@ -146,7 +160,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                     System.out.println(format("[thread-%d] Netty Client - Connecting to replica [%d] at [%s]",
                             Thread.currentThread().getId(),
                             currV[i] ,
-                            controller.getRemoteAddress(currV[i])));
+                            remoteAddress));
 
                     //******* EDUARDO END **************//
 
@@ -157,7 +171,7 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                             System.err.println(format("[thread-%d] Netty Client -  Could not connect to replica [%d] at [%s]. Cause [%s]",
                                     Thread.currentThread().getId(),
                                     currV[i],
-                                    controller.getRemoteAddress(currV[i]),
+                                    remoteAddress,
                                     future.cause()));
                             future.cause().printStackTrace();
                     }
@@ -197,7 +211,9 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         if( workerGroup == null){
                             workerGroup = new NioEventLoopGroup();
                         }
-                        
+
+                        TOMConfiguration staticConf = controller.getStaticConf();
+
                         //try {
                         Bootstrap b = new Bootstrap();
                         b.group(workerGroup);
@@ -209,16 +225,25 @@ public class NettyClientServerCommunicationSystemClientSide extends SimpleChanne
                         b.handler(getChannelInitializer());
 
                         // Start the client.
-                        ChannelFuture future =  b.connect(controller.getRemoteAddress(currV[i]));
+                        InetSocketAddress remoteAddress = (InetSocketAddress) controller.getRemoteAddress(currV[i]);
+
+                        if (staticConf.isUseSocksProxy()) { // calling like this means it is created unresolved
+                            System.out.println(format("[thread-%d] NettyClient.updateConnections - using socks proxy, setting a noop address resolver so that adresses are resolved by the proxy",
+                                    Thread.currentThread().getId()));
+                            b.resolver(NoopAddressResolverGroup.INSTANCE);
+                        }
+
+                        ChannelFuture future =  b.connect(remoteAddress);
 
                         String str = this.clientId + ":" + currV[i];
                         PBEKeySpec spec = new PBEKeySpec(str.toCharArray());
                         SecretKey authKey = fac.generateSecret(spec);
 
                         //creates MAC stuff
-                        Mac macSend = Mac.getInstance(controller.getStaticConf().getHmacAlgorithm());
+
+                        Mac macSend = Mac.getInstance(staticConf.getHmacAlgorithm());
                         macSend.init(authKey);
-                        Mac macReceive = Mac.getInstance(controller.getStaticConf().getHmacAlgorithm());
+                        Mac macReceive = Mac.getInstance(staticConf.getHmacAlgorithm());
                         macReceive.init(authKey);
                         NettyClientServerSession cs = new NettyClientServerSession(future.channel(), macSend, macReceive, currV[i]);
                         sessionTable.put(currV[i], cs);
