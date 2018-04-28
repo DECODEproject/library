@@ -46,7 +46,6 @@ import java.util.logging.Level;
 
 import javax.crypto.Mac;
 
-import io.netty.handler.proxy.Socks5ProxyHandler;
 import org.slf4j.LoggerFactory;
 
 import bftsmart.communication.client.CommunicationSystemServerSide;
@@ -111,14 +110,10 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 					port,
 					staticTomConfiguration.getServerSocketIp()));
 
-			if (staticTomConfiguration.isUseSocksProxy()) {
-				InetSocketAddress socksProxy = staticTomConfiguration.getSocksProxy();
-				System.out.println(format("[thread-%d] Netty ServerSide - Connecting to SOCKS5 proxy at %s:%s", Thread.currentThread().getId(), socksProxy.getHostName(), socksProxy.getPort()));
-			}
 
 			ServerBootstrap b = new ServerBootstrap();
 			b.group(bossGroup, workerGroup)
-			.channel(NioServerSocketChannel.class) 
+			.channel(NioServerSocketChannel.class)
 			.childHandler(new ChannelInitializer<SocketChannel>() {
 				@Override
 				public void initChannel(SocketChannel ch) throws Exception {
@@ -126,18 +121,15 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 					ch.pipeline().addLast(serverPipelineFactory.getEncoder());
 					ch.pipeline().addLast(serverPipelineFactory.getHandler());
 
-					if (staticTomConfiguration.isUseSocksProxy()) {
-						InetSocketAddress socksProxy = staticTomConfiguration.getSocksProxy();
-						ch.pipeline().addFirst(new Socks5ProxyHandler(socksProxy));
-					}
-
 				}
-			})	.childOption(ChannelOption.SO_KEEPALIVE, true).childOption(ChannelOption.TCP_NODELAY, true);
+			}).childOption(ChannelOption.SO_KEEPALIVE, true).childOption(ChannelOption.TCP_NODELAY, true);
 
 
 			final InetSocketAddress serverSocketAddress = (staticTomConfiguration.isUseSocksProxy())
 					? new InetSocketAddress(staticTomConfiguration.getServerSocketIp(), port)
 					: new InetSocketAddress(host, port);
+
+
 
 			System.out.println(format("[thread-%d] Netty Server - Binding server host from config: [%s], socketHostname: [%s], socketAddress: [%s], socketPort: [%s], isUnResolved [%s] ", Thread.currentThread().getId(),
 					host,
@@ -208,9 +200,10 @@ public class NettyClientServerCommunicationSystemServerSide extends SimpleChanne
 			System.out.println("Connection with client closed.");
 		else if(cause instanceof ConnectException) {
 			cause.printStackTrace();
-			System.out.println(format("[thread-%d] Netty Client - ConnectException caught trying to connect to client - first channel handler [%s]",
+			System.out.println(format("[thread-%d] Netty Server - ConnectException caught - channel-id [%s] - first channel handler [%s]",
 					Thread.currentThread().getId(),
-					ctx.pipeline().first()));
+					ctx.pipeline().first(),
+					ctx.channel().id()));
 		} else {
 			cause.printStackTrace(System.err);
 		}
